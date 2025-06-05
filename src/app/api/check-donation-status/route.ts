@@ -1,5 +1,5 @@
-// src/app/api/check-donation-status/route.ts
 import { NextRequest, NextResponse } from 'next/server'
+import { DonationService } from '@/lib/database'
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,18 +12,31 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // 这里应该从数据库查询订单状态
-    // 临时模拟：订单待支付状态
-    console.log('查询订单状态:', orderId)
+    // 从数据库查询订单状态
+    const donation = await DonationService.getDonationByOrderId(orderId)
     
-    // 模拟订单查询，实际项目中需要查询数据库
-    // const order = await getOrderById(orderId)
-    
-    return NextResponse.json({ 
-      success: false, 
-      status: 'pending',
-      message: '订单待支付' 
-    })
+    if (!donation) {
+      return NextResponse.json({ 
+        success: false, 
+        message: '订单不存在' 
+      }, { status: 404 })
+    }
+
+    // 根据订单状态返回结果
+    if (donation.status === 'paid') {
+      return NextResponse.json({ 
+        success: true, 
+        status: 'paid',
+        redirectTo: `/work/${donation.slug}`,
+        message: '支付成功' 
+      })
+    } else {
+      return NextResponse.json({ 
+        success: false, 
+        status: donation.status,
+        message: `订单状态: ${donation.status}` 
+      })
+    }
   } catch (error) {
     console.error('Check donation status error:', error)
     return NextResponse.json({ 

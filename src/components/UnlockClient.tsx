@@ -1,4 +1,4 @@
-// src/components/UnlockClient.tsx - 干净版本
+// src/components/UnlockClient.tsx - 更新广告API调用
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -28,15 +28,16 @@ function UnlockCore({ initialNext }: Props) {
     setLoading(false)
   }, [])
 
+  // 🔧 修复：更新为使用新的多广告 API
   const handleAd = async () => {
     setError('')
     setLoading(true)
     
     try {
-      const res = await fetch('/api/get-ad-video')
+      const res = await fetch('/api/get-ad-videos') // 使用新的多广告API
       const data = await res.json()
       
-      if (res.ok && data.videoPath) {
+      if (res.ok && data.success && data.videos && data.videos.length > 0) {
         setShowAdPlayer(true)
       } else {
         setError(data.error || '暂无可用广告，请稍后再试')

@@ -1,0 +1,119 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 赞赏订单表
+model Donation {
+  id               Int       @id @default(autoincrement())
+  orderId          String    @unique @map("order_id") @db.VarChar(255)
+  slug             String    @db.VarChar(255)
+  amount           Decimal   @db.Decimal(10, 2)
+  currency         String    @db.VarChar(3)
+  status           String    @default("pending") @db.VarChar(20) // pending, paid, failed, expired, cancelled
+  userIp           String?   @map("user_ip") @db.VarChar(45)
+  userCountry      String?   @map("user_country") @db.VarChar(2)
+  paymentUrl       String?   @map("payment_url") @db.Text
+  paymentProvider  String?   @map("payment_provider") @db.VarChar(50)
+  paymentMethod    String?   @map("payment_method") @db.VarChar(50) // wechat, alipay, stripe, etc.
+  transactionId    String?   @map("transaction_id") @db.VarChar(255) // 第三方支付平台的交易ID
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  paidAt           DateTime? @map("paid_at")
+  expiresAt        DateTime? @map("expires_at")
+  metadata         Json?     // 存储额外信息：用户代理、推荐人等
+
+  // 关联支付日志
+  paymentLogs PaymentLog[]
+
+  @@index([orderId])
+  @@index([status])
+  @@index([slug])
+  @@index([userIp])
+  @@index([createdAt])
+  @@map("donations")
+}
+
+// 支付日志表 - 记录所有支付相关的操作
+model PaymentLog {
+  id        Int      @id @default(autoincrement())
+  orderId   String   @map("order_id") @db.VarChar(255)
+  action    String   @db.VarChar(50) // create_order, payment_attempt, payment_success, payment_failed, etc.
+  status    String   @db.VarChar(20) // success, error, info, warning
+  message   String?  @db.Text
+  metadata  Json?    // 详细的日志数据
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // 关联订单
+  donation Donation @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([action])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payment_logs")
+}
+
+// 解锁Token表 - 跟踪所有生成的解锁token
+model UnlockToken {
+  id          Int       @id @default(autoincrement())
+  tokenId     String    @unique @map("token_id") @db.VarChar(255) // JWT的jti
+  slug        String    @db.VarChar(255)
+  unlockType  String    @map("unlock_type") @db.VarChar(20) // code, ad, donation
+  orderId     String?   @map("order_id") @db.VarChar(255) // 关联赞赏订单（如果适用）
+  userIp      String?   @map("user_ip") @db.VarChar(45)
+  userAgent   String?   @map("user_agent") @db.Text
+  issuedAt    DateTime  @map("issued_at") @default(now())
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  metadata    Json?
+
+  @@index([tokenId])
+  @@index([slug])
+  @@index([unlockType])
+  @@index([orderId])
+  @@index([expiresAt])
+  @@map("unlock_tokens")
+}
+
+// 用户行为分析表 - 可选，用于分析用户行为
+model UserAnalytics {
+  id          Int      @id @default(autoincrement())
+  sessionId   String   @map("session_id") @db.VarChar(255)
+  userIp      String   @map("user_ip") @db.VarChar(45)
+  userCountry String?  @map("user_country") @db.VarChar(2)
+  action      String   @db.VarChar(50) // visit_unlock_page, select_payment_method, payment_success, etc.
+  slug        String?  @db.VarChar(255)
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([sessionId])
+  @@index([userIp])
+  @@index([action])
+  @@index([slug])
+  @@index([createdAt])
+  @@map("user_analytics")
+}
+
+// 系统配置表 - 存储系统设置
+model SystemConfig {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique @db.VarChar(100)
+  value     String   @db.Text
+  type      String   @db.VarChar(20) // string, number, boolean, json
+  category  String   @db.VarChar(50) // payment, unlock, system, etc.
+  description String? @db.Text
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by") @db.VarChar(100)
+
+  @@index([category])
+  @@map("system_config")
+}

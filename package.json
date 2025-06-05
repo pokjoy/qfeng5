@@ -1,0 +1,46 @@
+{
+  "name": "pokjoy-mp",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@maxmind/geoip2-node": "^6.1.0",
+    "@tailwindcss/typography": "^0.5.16",
+    "framer-motion": "^12.12.1",
+    "gray-matter": "^4.0.3",
+    "jose": "^6.0.11",
+    "lucide-react": "^0.511.0",
+    "next": "^15.3.2",
+    "next-mdx-remote": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-draggable": "^4.4.6",
+    "react-parallax-tilt": "^1.7.295",
+    "react-simple-typewriter": "^5.0.1",
+    "rehype-highlight": "^7.0.2",
+    "remark": "^15.0.1",
+    "remark-gfm": "^4.0.1",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4.1.7",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
+    "array.prototype.tosorted": "^1.1.4",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.2",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.7",
+    "typescript": "^5"
+  }
+}

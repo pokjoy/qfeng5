@@ -135,39 +135,120 @@ export class DonationService {
     }
   }
 
-  // 清理过期订单
+  // 清理过期订单 - 改进版
   static async cleanupExpiredOrders() {
-    const expiredOrders = await prisma.donation.updateMany({
+    const now = new Date()
+    
+    // 方法1：通过 expiresAt 字段判断过期
+    const expiredByTime = await prisma.donation.updateMany({
       where: {
         status: 'pending',
         expiresAt: {
-          lt: new Date()
-        }
+          lt: now
+        },
+        isExpired: false // 还没有标记为过期的
       },
       data: {
         status: 'expired',
+        isExpired: true,
+        updatedAt: now
+      }
+    })
+
+    // 记录清理日志
+    if (expiredByTime.count > 0) {
+      console.log(`通过时间判断清理了 ${expiredByTime.count} 个过期订单`)
+      
+      // 为清理操作添加日志（可以批量记录）
+      await this.addPaymentLog(
+        'BATCH_CLEANUP',
+        'system',
+        'cleanup_expired',
+        'success',
+        `通过时间判断清理了 ${expiredByTime.count} 个过期订单`
+      )
+    }
+
+    return expiredByTime.count
+  }
+
+  // 手动标记订单为过期
+  static async markOrderAsExpired(orderId: string, reason?: string) {
+    const donation = await prisma.donation.update({
+      where: { orderId },
+      data: {
+        status: 'expired',
+        isExpired: true,
         updatedAt: new Date()
       }
     })
 
-    console.log(`已清理 ${expiredOrders.count} 个过期订单`)
-    return expiredOrders.count
+    // 记录过期操作日志
+    await this.addPaymentLog(
+      orderId,
+      'donations',
+      'mark_expired',
+      'info',
+      reason || '手动标记为过期'
+    )
+
+    return donation
   }
 
-  // 添加支付日志 - 最简化版本
+  // 添加支付日志 - 改进版本，支持模块化
   static async addPaymentLog(
     orderId: string, 
+    module: string,  // 新增：模块名
     action: string, 
     status: string, 
-    message?: string
+    message?: string,
+    alertSent: boolean = false  // 新增：是否已发送告警
   ) {
     return await prisma.paymentLog.create({
       data: {
         orderId,
+        module,
         action,
         status,
-        message
+        message,
+        alertSent
         // 不设置 metadata 字段，让 Prisma 使用默认值
+      }
+    })
+  }
+
+  // 查询需要告警的错误日志
+  static async getUnalertedErrors(limit: number = 50) {
+    return await prisma.paymentLog.findMany({
+      where: {
+        status: 'error',
+        alertSent: false
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      take: limit,
+      include: {
+        donation: {
+          select: {
+            slug: true,
+            amount: true,
+            currency: true,
+            userCountry: true
+          }
+        }
+      }
+    })
+  }
+
+  // 标记告警已发送
+  static async markAlertsAsSent(logIds: number[]) {
+    return await prisma.paymentLog.updateMany({
+      where: {
+        id: { in: logIds }
+      },
+      data: {
+        alertSent: true
       }
     })
   }

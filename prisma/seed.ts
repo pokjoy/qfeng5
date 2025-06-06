@@ -163,6 +163,7 @@ async function main() {
         data: [
           {
             orderId: order.orderId,
+            module: 'donations',
             action: 'create_order',
             status: 'success',
             message: '测试订单创建成功',
@@ -170,6 +171,7 @@ async function main() {
           },
           ...(order.status === 'paid' ? [{
             orderId: order.orderId,
+            module: 'payment',
             action: 'payment_success',
             status: 'success',
             message: '测试支付成功',
@@ -177,6 +179,7 @@ async function main() {
           }] : []),
           ...(order.status === 'expired' ? [{
             orderId: order.orderId,
+            module: 'system',
             action: 'order_expired',
             status: 'info',
             message: '测试订单已过期',
@@ -194,7 +197,7 @@ async function main() {
         userCountry: 'CN',
         action: 'visit_unlock_page',
         slug: 'internup',
-        metadata: { test: true }
+        metadata: { test: true, userAgent: 'Mozilla/5.0 (test)' }
       },
       {
         sessionId: 'test_session_001',
@@ -210,7 +213,7 @@ async function main() {
         userCountry: 'US',
         action: 'visit_unlock_page',
         slug: 'snowoverflow',
-        metadata: { test: true }
+        metadata: { test: true, userAgent: 'Mozilla/5.0 (iPhone; test)' }
       }
     ]
 

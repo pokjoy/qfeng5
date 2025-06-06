@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { testPaymentService, buildPaymentUrl } from '@/lib/payment-service'
 import { DonationService, AnalyticsService } from '@/lib/database'
 import { generateDonationOrderId } from '@/lib/order-id-generator'
+import { parseUserAgent, getUserDeviceDescription } from '@/lib/user-agent'
 
 // 获取用户真实IP
 function getRealIP(request: NextRequest): string {
@@ -48,11 +49,14 @@ export async function POST(request: NextRequest) {
     orderId = generateDonationOrderId()
     console.log(`💰 开始创建赞赏订单: ${orderId}`)
     
-    // 3. 获取用户信息
+    // 3. 获取用户信息和设备信息
     const userIp = getRealIP(request)
+    const userAgent = request.headers.get('user-agent')
+    const userAgentInfo = parseUserAgent(userAgent)
+    const deviceDescription = getUserDeviceDescription(userAgent)
     const userCountry = await getUserCountry(userIp)
     
-    console.log(`👤 用户信息: IP=${userIp}, Country=${userCountry}`)
+    console.log(`👤 用户信息: IP=${userIp}, Country=${userCountry}, Device=${deviceDescription}`)
 
     // 4. 并行执行：测试支付服务状态
     console.log('🔍 测试支付服务状态...')
@@ -94,7 +98,15 @@ export async function POST(request: NextRequest) {
     // 使用正确的类型创建metadata
     const metadata = {
       paymentServiceResponseTime: serviceStatus.responseTime,
-      userAgent: request.headers.get('user-agent'),
+      userAgent: userAgent,
+      userAgentInfo: {
+        device: userAgentInfo.device,
+        browser: userAgentInfo.browser,
+        os: userAgentInfo.os,
+        isMobile: userAgentInfo.isMobile,
+        isWechat: userAgentInfo.isWechat,
+        isAlipay: userAgentInfo.isAlipay
+      },
       referer: request.headers.get('referer'),
       serviceTestTimestamp: serviceStatus.timestamp,
       createdVia: 'donation-modal'
@@ -107,6 +119,7 @@ export async function POST(request: NextRequest) {
       currency,
       userIp,
       userCountry,
+      userAgent, // 新增：存储完整的 User-Agent
       paymentUrl,
       paymentProvider: 'external',
       expiresAt,
@@ -177,6 +190,7 @@ export async function POST(request: NextRequest) {
       try {
         await DonationService.addPaymentLog(
           orderId,
+          'donations',
           'create_order_error',
           'error',
           error instanceof Error ? error.message : 'Unknown error'

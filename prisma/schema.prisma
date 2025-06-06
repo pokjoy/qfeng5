@@ -18,17 +18,20 @@ model Donation {
   amount           Decimal   @db.Decimal(10, 2)
   currency         String    @db.VarChar(3)
   status           String    @default("pending") @db.VarChar(20) // pending, paid, failed, expired, cancelled
+  isExpired        Boolean   @default(false) @map("is_expired") // 布尔字段标记是否过期
   userIp           String?   @map("user_ip") @db.VarChar(45)
   userCountry      String?   @map("user_country") @db.VarChar(2)
+  userAgent        String?   @map("user_agent") @db.Text // 新增：用户代理字符串
   paymentUrl       String?   @map("payment_url") @db.Text
   paymentProvider  String?   @map("payment_provider") @db.VarChar(50)
   paymentMethod    String?   @map("payment_method") @db.VarChar(50) // wechat, alipay, stripe, etc.
   transactionId    String?   @map("transaction_id") @db.VarChar(255) // 第三方支付平台的交易ID
+  callbackData     Json?     @map("callback_data") // 新增：存储第三方支付回调的完整原始数据
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   paidAt           DateTime? @map("paid_at")
   expiresAt        DateTime? @map("expires_at")
-  metadata         Json?     // 存储额外信息：用户代理、推荐人等
+  metadata         Json?     // 存储额外信息：支付服务响应时间、推荐人等
 
   // 关联支付日志
   paymentLogs PaymentLog[]
@@ -37,7 +40,9 @@ model Donation {
   @@index([status])
   @@index([slug])
   @@index([userIp])
+  @@index([isExpired])
   @@index([createdAt])
+  @@index([expiresAt])
   @@map("donations")
 }
 
@@ -45,9 +50,11 @@ model Donation {
 model PaymentLog {
   id        Int      @id @default(autoincrement())
   orderId   String   @map("order_id") @db.VarChar(255)
-  action    String   @db.VarChar(50) // create_order, payment_attempt, payment_success, payment_failed, etc.
+  module    String   @db.VarChar(30) // 新增：模块名 donations, payment, webhook, etc.
+  action    String   @db.VarChar(50) // 改进：动作名 create_order, execute_request, execute_response, notify_received
   status    String   @db.VarChar(20) // success, error, info, warning
   message   String?  @db.Text
+  alertSent Boolean  @default(false) @map("alert_sent") // 新增：是否已发送告警
   metadata  Json?    // 详细的日志数据
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -55,8 +62,10 @@ model PaymentLog {
   donation Donation @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
 
   @@index([orderId])
+  @@index([module])
   @@index([action])
   @@index([status])
+  @@index([alertSent])
   @@index([createdAt])
   @@map("payment_logs")
 }
